@@ -11,9 +11,9 @@ from typing import Iterable
 from models import MatchRow
 from report import HtmlReport
 from search import BandcampSearch, score_match
+from query_utils import QueryNormalizer
 from youtube_client import (
     YouTubeClient,
-    dash_stripped,
     filter_by_channels,
     validate_cookie_path,
 )
@@ -106,9 +106,28 @@ def main() -> None:
 
     rows: list[MatchRow] = []
     for like in filtered:
-        query = dash_stripped(like.title)
+        query = QueryNormalizer.dash_stripped(like.title)
         result = search_provider.search_track(query)
         result.score = score_match(like.title, result.match_title, result.match_artist)
+
+        fallback_query = QueryNormalizer.sanitize_search_query(query)
+        retried = False
+        if (
+            result.score == 0.0
+            and fallback_query
+            and fallback_query != query
+        ):
+            retry_result = search_provider.search_track(fallback_query)
+            retry_result.score = score_match(
+                like.title,
+                retry_result.match_title,
+                retry_result.match_artist,
+            )
+            if retry_result.match_title or retry_result.match_artist:
+                result = retry_result
+                query = fallback_query
+                retried = True
+
         matched = (
             result.score >= args.match_threshold
             and bool(result.match_url)
@@ -124,21 +143,23 @@ def main() -> None:
             )
         )
 
+        retry_note = " (sanitized query)" if retried else ""
+
         if result.error:
-            print(f"- {like.title}: error searching Bandcamp ({result.error}); search URL: {result.search_url}")
+            print(f"- {like.title}{retry_note}: error searching Bandcamp ({result.error}); search URL: {result.search_url}")
             continue
 
         if not result.match_title and not result.match_artist:
-            print(f"- {like.title}: no results; search URL: {result.search_url}")
+            print(f"- {like.title}{retry_note}: no results; search URL: {result.search_url}")
             continue
 
         if matched:
             artist = result.match_artist or "Unknown artist"
             title = result.match_title or "Unknown title"
             url = result.match_url or result.search_url
-            print(f"- {like.title}: MATCH {result.score:.2f} -> {title} — {artist} ({url})")
+            print(f"- {like.title}{retry_note}: MATCH {result.score:.2f} -> {title} — {artist} ({url})")
         else:
-            print(f"- {like.title}: below threshold (score {result.score:.2f}); search URL: {result.search_url}")
+            print(f"- {like.title}{retry_note}: below threshold (score {result.score:.2f}); search URL: {result.search_url}")
 
     if args.html:
         try:

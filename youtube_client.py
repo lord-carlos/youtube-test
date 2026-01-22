@@ -52,10 +52,6 @@ def validate_cookie_path(cookie: str | None) -> str | None:
     return expanded
 
 
-def dash_stripped(text: str) -> str:
-    return text.replace("-", " ").strip()
-
-
 def filter_by_channels(likes: Iterable[YouTubeLike], channels: Iterable[str]) -> list[YouTubeLike]:
     candidates = {c.casefold(): c for c in channels}
     return [like for like in likes if like.uploader and like.uploader.casefold() in candidates]
