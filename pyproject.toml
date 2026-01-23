@@ -9,6 +9,8 @@ dependencies = [
     "brotlicffi>=1.2.0.0",
     "browser-cookie3>=0.20.1",
     "httpx[http2]>=0.28.1",
+    "jinja2>=3.1.5",
     "lxml>=6.0.2",
+    "pytest>=8.0.0",
     "yt-dlp>=2025.12.8",
 ]

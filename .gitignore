@@ -12,3 +12,4 @@ wheels/
 #project
 cookies.txt
 results.html
+tests/test_output.html
